@@ -1,10 +1,10 @@
 package com.bitgrind.filestorage
 
 import com.bitgrind.filestorage.impl.MultiPlatformFileStorage
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.currentCoroutineContext
 
-actual suspend fun getFileStorage(): FileStorage = MultiPlatformFileStorage(
-    scope = CoroutineScope(CoroutineName("filestorage") + currentCoroutineContext())
+actual fun getFileStorage(context: CoroutineContext): FileStorage = MultiPlatformFileStorage(
+    scope = CoroutineScope(CoroutineName("filestorage") + context)
 )

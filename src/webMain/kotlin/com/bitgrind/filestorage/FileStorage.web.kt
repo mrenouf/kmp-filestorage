@@ -3,11 +3,11 @@ package com.bitgrind.filestorage
 import com.bitgrind.filestorage.impl.OpfsFileStorage
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.currentCoroutineContext
 import web.navigator.navigator
+import kotlin.coroutines.CoroutineContext
 
 @Suppress("unused")
-actual suspend fun getFileStorage(): FileStorage = OpfsFileStorage(
+actual fun getFileStorage(context: CoroutineContext): FileStorage = OpfsFileStorage(
     storage = navigator.storage,
-    scope = CoroutineScope(CoroutineName("filestorage") + currentCoroutineContext())
+    scope = CoroutineScope(CoroutineName("filestorage") + context),
 )

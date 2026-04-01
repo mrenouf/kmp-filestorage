@@ -1,5 +1,7 @@
 package com.bitgrind.filestorage
 
+import kotlin.coroutines.CoroutineContext
+
 interface FileStorage {
     suspend fun readText(path: String): String
     suspend fun writeText(path: String, content: String, append: Boolean)
@@ -10,4 +12,4 @@ interface FileStorage {
     suspend fun exists(path: String): Boolean
 }
 
-expect suspend fun getFileStorage(): FileStorage
+expect fun getFileStorage(context: CoroutineContext): FileStorage
