@@ -24,6 +24,7 @@ kotlin {
             jvmTarget = JVM_11
         }
     }
+    linuxX64()
     jvm {
         compilerOptions {
             jvmTarget = JVM_11
