@@ -1,6 +1,6 @@
 package com.bitgrind.filestorage.impl
 
-import com.bitgrind.filestorage.api.ByteReader
+import com.bitgrind.filestorage.ByteReader
 import kotlinx.io.Source
 import kotlinx.io.readByteArray
 import kotlinx.io.readString

@@ -1,49 +1,63 @@
 @file:OptIn(ExperimentalWasmJsInterop::class)
 
 package com.bitgrind.filestorage.impl
-import com.bitgrind.filestorage.api.ByteReader
-import com.bitgrind.filestorage.api.ByteWriter
-import com.bitgrind.filestorage.api.FileStorage
+import com.bitgrind.filestorage.ByteReader
+import com.bitgrind.filestorage.ByteWriter
+import com.bitgrind.filestorage.FileStorage
 import js.iterable.asFlow
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.any
+import web.blob.text
 import web.fs.*
-import web.navigator.navigator
 import web.storage.StorageManager
 import web.storage.getDirectory
 import web.streams.cancel
+import web.streams.close
 import kotlin.js.ExperimentalWasmJsInterop
 
 class OpfsFileStorage(
-    private val storage: StorageManager = navigator.storage,
-    private val scope: CoroutineScope = MainScope()
+    private val storage: StorageManager,
+    private val scope: CoroutineScope,
 ) : FileStorage {
     internal suspend fun getRoot(): FileSystemDirectoryHandle = storage.getDirectory()
 
-    override suspend fun getReader(path: String): ByteReader {
+    internal suspend fun getFileHandle(path: String, createFile: Boolean): FileSystemFileHandle {
         val segments = path.segments()
         var dir = getRoot()
         for (segment in segments.parent()) {
             dir = dir.getDirectoryHandle(segment)
         }
-        val fileHandle = dir.getFileHandle(segments.target(), fileSystemGetFileOptions(create = false))
-        val stream = fileHandle.getFile().stream()
-        return JsByteReader(stream.asFlow(), scope, onClose = { stream.cancel() })
+        return dir.getFileHandle(segments.target(), fileSystemGetFileOptions(create = createFile))
     }
 
-    override suspend fun getWriter(path: String, append: Boolean): ByteWriter {
-        val segments = path.segments()
-        var dir = getRoot()
-        for (segment in segments.parent()) {
-            dir = dir.getDirectoryHandle(segment)
-        }
-        val fileHandle = dir.getFileHandle(segments.target(), fileSystemGetFileOptions(create = true))
+    override suspend fun readText(path: String): String {
+        val fileHandle = getFileHandle(path, createFile = false)
+        return fileHandle.getFile().text()
+    }
+
+    override suspend fun writeText(path: String, content: String, append: Boolean) {
+        val fileHandle = getFileHandle(path, createFile = true)
         val stream = fileHandle.createWritable(fileSystemCreateWritableOptions(append))
         if (append) {
             stream.seek(fileHandle.getFile().size)
         }
-        return JsByteWriter(stream)
+        stream.write(Utf8.encode(content))
+        stream.close()
+    }
+
+    override suspend fun getReader(path: String): ByteReader {
+        val fileHandle = getFileHandle(path, createFile = false)
+        val stream = fileHandle.getFile().stream()
+        return OpfsByteReader(stream.asFlow(), scope, onClose = { stream.cancel() })
+    }
+
+    override suspend fun getWriter(path: String, append: Boolean): ByteWriter {
+        val fileHandle = getFileHandle(path, createFile = true)
+        val stream = fileHandle.createWritable(fileSystemCreateWritableOptions(append))
+        if (append) {
+            stream.seek(fileHandle.getFile().size)
+        }
+        return OpfsByteWriter(stream)
     }
 
     override suspend fun createDirectories(path: String) {

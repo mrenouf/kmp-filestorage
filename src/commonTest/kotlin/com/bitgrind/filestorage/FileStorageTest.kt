@@ -1,47 +1,19 @@
-@file:OptIn(ExperimentalWasmJsInterop::class)
+package com.bitgrind.filestorage
 
-package com.bitgrind.filestorage.impl
-
-import js.iterable.asFlow
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.currentCoroutineContext
+import com.bitgrind.filestorage.test.runFileStorageTest
 import kotlinx.coroutines.test.runTest
-import web.fs.removeEntry
-import web.navigator.navigator
-import web.storage.getDirectory
-import kotlin.js.ExperimentalWasmJsInterop
-import kotlin.test.*
+import kotlin.test.Test
+import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
-class OpfsFileStorageTest {
 
-    /**
-     * Obtains the OPFS root, runs [block] with a scoped [OpfsFileStorage], then
-     * recursively removes all entries created during the test.
-     * Skips silently if OPFS is not available in the current environment.
-     */
-    private suspend fun runOpfsTest(block: suspend (OpfsFileStorage) -> Unit) {
-        val root = try {
-            navigator.storage.getDirectory()
-        } catch (_: Exception) {
-            println("OPFS not available — skipping")
-            return
-        }
-
-        val storage = OpfsFileStorage(scope = CoroutineScope(currentCoroutineContext()))
-        try {
-            block(storage)
-        } finally {
-            root.values().asFlow().collect { entry ->
-                root.removeEntry(entry.name, fileSystemRemoveOptions(recursive = true))
-            }
-        }
-    }
-
+class FileStorageTest {
     // --- write/read roundtrip ---
-
     @Test
     fun testWriteAndReadShort() = runTest {
-        runOpfsTest { storage ->
+        runFileStorageTest { storage ->
             val writer = storage.getWriter("short.bin", append = false)
             writer.writeShort(0x1234.toShort())
             writer.close()
@@ -54,7 +26,7 @@ class OpfsFileStorageTest {
 
     @Test
     fun testWriteAndReadInt() = runTest {
-        runOpfsTest { storage ->
+        runFileStorageTest { storage ->
             val writer = storage.getWriter("int.bin", append = false)
             writer.writeInt(0x12345678)
             writer.close()
@@ -67,7 +39,7 @@ class OpfsFileStorageTest {
 
     @Test
     fun testWriteAndReadString() = runTest {
-        runOpfsTest { storage ->
+        runFileStorageTest { storage ->
             val writer = storage.getWriter("string.bin", append = false)
             writer.writeString("hello world")
             writer.close()
@@ -80,7 +52,7 @@ class OpfsFileStorageTest {
 
     @Test
     fun testWriteAndReadEmptyString() = runTest {
-        runOpfsTest { storage ->
+        runFileStorageTest { storage ->
             val writer = storage.getWriter("empty.bin", append = false)
             writer.writeString("")
             writer.close()
@@ -93,7 +65,7 @@ class OpfsFileStorageTest {
 
     @Test
     fun testWriteAndReadByteArray() = runTest {
-        runOpfsTest { storage ->
+        runFileStorageTest { storage ->
             val payload = byteArrayOf(0xDE.toByte(), 0xAD.toByte(), 0xBE.toByte(), 0xEF.toByte())
             val writer = storage.getWriter("bytes.bin", append = false)
             writer.writeByteArray(payload)
@@ -107,7 +79,7 @@ class OpfsFileStorageTest {
 
     @Test
     fun testWriteAndReadEmptyByteArray() = runTest {
-        runOpfsTest { storage ->
+        runFileStorageTest { storage ->
             val writer = storage.getWriter("empty-bytes.bin", append = false)
             writer.writeByteArray(byteArrayOf())
             writer.close()
@@ -120,7 +92,7 @@ class OpfsFileStorageTest {
 
     @Test
     fun testWriteAndReadMultipleValues() = runTest {
-        runOpfsTest { storage ->
+        runFileStorageTest { storage ->
             val writer = storage.getWriter("multi.bin", append = false)
             writer.writeShort(300.toShort())
             writer.writeInt(0xCAFEBABE.toInt())
@@ -136,12 +108,93 @@ class OpfsFileStorageTest {
             reader.close()
         }
     }
+// --- readText / writeText ---
 
-    // --- append mode ---
+    @Test
+    fun testWriteAndReadText() = runTest {
+        runFileStorageTest { storage ->
+            storage.writeText("text.txt", "hello, world", append = false)
+            assertEquals("hello, world", storage.readText("text.txt"))
+        }
+    }
+
+    @Test
+    fun testWriteTextOverwrites() = runTest {
+        runFileStorageTest { storage ->
+            storage.writeText("overwrite.txt", "first", append = false)
+            storage.writeText("overwrite.txt", "second", append = false)
+            assertEquals("second", storage.readText("overwrite.txt"))
+        }
+    }
+
+    @Test
+    fun testWriteTextAppend() = runTest {
+        runFileStorageTest { storage ->
+            storage.writeText("append.txt", "hello", append = false)
+            storage.writeText("append.txt", " world", append = true)
+            assertEquals("hello world", storage.readText("append.txt"))
+        }
+    }
+
+    @Test
+    fun testWriteAndReadEmptyText() = runTest {
+        runFileStorageTest { storage ->
+            storage.writeText("empty.txt", "", append = false)
+            assertEquals("", storage.readText("empty.txt"))
+        }
+    }
+
+    @Test
+    fun testWriteAndReadMultilineText() = runTest {
+        runFileStorageTest { storage ->
+            val content = "line one\nline two\nline three"
+            storage.writeText("multiline.txt", content, append = false)
+            assertEquals(content, storage.readText("multiline.txt"))
+        }
+    }
+
+    @Test
+    fun testWriteAndReadUnicodeText() = runTest {
+        runFileStorageTest { storage ->
+            val content = "こんにちは 🌍"
+            storage.writeText("unicode.txt", content, append = false)
+            assertEquals(content, storage.readText("unicode.txt"))
+        }
+    }
+// --- big-endian byte order ---
+
+    @Test
+    fun testShortBigEndian() = runTest {
+        runFileStorageTest { storage ->
+            val writer = storage.getWriter("be-short.bin", append = false)
+            writer.writeShort(0x0102.toShort())
+            writer.close()
+
+            val reader = storage.getReader("be-short.bin")
+            assertEquals(0x01.toByte(), reader.readByte())
+            assertEquals(0x02.toByte(), reader.readByte())
+        }
+    }
+
+    @Test
+    fun testIntBigEndian() = runTest {
+        runFileStorageTest { storage ->
+            val writer = storage.getWriter("be-int.bin", append = false)
+            writer.writeInt(0x01020304)
+            writer.close()
+
+            val reader = storage.getReader("be-int.bin")
+            assertEquals(0x01.toByte(), reader.readByte())
+            assertEquals(0x02.toByte(), reader.readByte())
+            assertEquals(0x03.toByte(), reader.readByte())
+            assertEquals(0x04.toByte(), reader.readByte())
+        }
+    }
+// --- append mode ---
 
     @Test
     fun testAppendMode() = runTest {
-        runOpfsTest { storage ->
+        runFileStorageTest { storage ->
             val writer1 = storage.getWriter("append.bin", append = false)
             writer1.writeShort(1.toShort())
             writer1.close()
@@ -156,42 +209,30 @@ class OpfsFileStorageTest {
             reader.close()
         }
     }
-
-    // --- createDirectories ---
+// --- createDirectories ---
 
     @Test
     fun testCreateDirectories() = runTest {
-        runOpfsTest { storage ->
+        runFileStorageTest { storage ->
             storage.createDirectories("a/b/c")
-
-            // Verify by writing a file inside the created path
-            val writer = storage.getWriter("a/b/c/probe.bin", append = false)
-            writer.writeShort(0.toShort())
-            writer.close()
+            assertTrue(storage.exists("a/b/c"))
         }
     }
 
     @Test
     fun testCreateDirectoriesIdempotent() = runTest {
-        runOpfsTest { storage ->
+        runFileStorageTest { storage ->
             storage.createDirectories("dir")
             storage.createDirectories("dir")
-
-            val writer = storage.getWriter("dir/probe.bin", append = false)
-            writer.writeShort(0.toShort())
-            writer.close()
+            assertTrue(storage.exists("dir"))
         }
     }
-
-    // --- delete ---
+// --- delete ---
 
     @Test
     fun testDeleteFile() = runTest {
-        runOpfsTest { storage ->
-            val writer = storage.getWriter("file.bin", append = false)
-            writer.writeShort(0.toShort())
-            writer.close()
-
+        runFileStorageTest { storage ->
+            storage.getWriter("file.bin", append = false).close()
             assertTrue(storage.exists("file.bin"))
             storage.delete("file.bin", recursive = false)
             assertFalse(storage.exists("file.bin"))
@@ -199,14 +240,21 @@ class OpfsFileStorageTest {
     }
 
     @Test
-    fun testDeleteDirectoryRecursively() = runTest {
-        runOpfsTest { storage ->
-            storage.createDirectories("tree/a")
-            val writer = storage.getWriter("tree/a/b.bin", append = false)
-            writer.writeShort(0.toShort())
-            writer.close()
+    fun testDeleteEmptyDirectory() = runTest {
+        runFileStorageTest { storage ->
+            storage.createDirectories("empty")
+            storage.delete("empty", recursive = false)
+            assertFalse(storage.exists("empty"))
+        }
+    }
 
-            assertTrue(storage.exists("tree"))
+    @Test
+    fun testDeleteDirectoryRecursively() = runTest {
+        runFileStorageTest { storage ->
+            storage.createDirectories("tree/a")
+            storage.getWriter("tree/a/b.txt", append = false).close()
+            storage.getWriter("tree/c.txt", append = false).close()
+
             storage.delete("tree", recursive = true)
             assertFalse(storage.exists("tree"))
         }

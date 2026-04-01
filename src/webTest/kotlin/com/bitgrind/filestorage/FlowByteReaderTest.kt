@@ -1,7 +1,8 @@
 @file:OptIn(ExperimentalCoroutinesApi::class, ExperimentalWasmJsInterop::class, ExperimentalUnsignedTypes::class)
 
-package com.bitgrind.filestorage.impl
+package com.bitgrind.filestorage
 
+import com.bitgrind.filestorage.impl.OpfsByteReader
 import js.buffer.ArrayBuffer
 import js.typedarrays.Uint8Array
 import js.typedarrays.toUint8Array
@@ -18,7 +19,7 @@ import kotlin.test.assertFailsWith
 
 class FlowByteReaderTest {
 
-    /** Converts a [ByteArray] to a [Uint8Array] chunk suitable for passing to [JsByteReader]. */
+    /** Converts a [ByteArray] to a [Uint8Array] chunk suitable for passing to [com.bitgrind.filestorage.impl.OpfsByteReader]. */
     private fun chunk(bytes: ByteArray): Uint8Array<ArrayBuffer> = bytes.toUint8Array()
 
 
@@ -26,14 +27,14 @@ class FlowByteReaderTest {
 
     @Test
     fun testReadShortWithinChunk() = runTest {
-        val reader = JsByteReader(flowOf(chunk(byteArrayOf(0x01, 0x02))), this)
+        val reader = OpfsByteReader(flowOf(chunk(byteArrayOf(0x01, 0x02))), this)
         assertEquals(0x0102.toShort(), reader.readShort())
     }
 
     @Test
     fun testReadShortAcrossChunkBoundary() = runTest {
         // High byte in first chunk, low byte in second
-        val reader = JsByteReader(
+        val reader = OpfsByteReader(
             flowOf(chunk(byteArrayOf(0x12)), chunk(byteArrayOf(0x34))),
             this
         )
@@ -42,13 +43,13 @@ class FlowByteReaderTest {
 
     @Test
     fun testReadShortNegativeValue() = runTest {
-        val reader = JsByteReader(flowOf(chunk(byteArrayOf(0xFF.toByte(), 0xFF.toByte()))), this)
+        val reader = OpfsByteReader(flowOf(chunk(byteArrayOf(0xFF.toByte(), 0xFF.toByte()))), this)
         assertEquals((-1).toShort(), reader.readShort())
     }
 
     @Test
     fun testReadShortMaxValue() = runTest {
-        val reader = JsByteReader(flowOf(chunk(byteArrayOf(0x7F, 0xFF.toByte()))), this)
+        val reader = OpfsByteReader(flowOf(chunk(byteArrayOf(0x7F, 0xFF.toByte()))), this)
         assertEquals(Short.MAX_VALUE, reader.readShort())
     }
 
@@ -56,13 +57,13 @@ class FlowByteReaderTest {
 
     @Test
     fun testReadIntWithinChunk() = runTest {
-        val reader = JsByteReader(flowOf(chunk(byteArrayOf(0x01, 0x02, 0x03, 0x04))), this)
+        val reader = OpfsByteReader(flowOf(chunk(byteArrayOf(0x01, 0x02, 0x03, 0x04))), this)
         assertEquals(0x01020304, reader.readInt())
     }
 
     @Test
     fun testReadIntSplitAcrossTwoChunks() = runTest {
-        val reader = JsByteReader(
+        val reader = OpfsByteReader(
             flowOf(chunk(byteArrayOf(0x00, 0x00)), chunk(byteArrayOf(0x00, 0x01))),
             this
         )
@@ -71,7 +72,7 @@ class FlowByteReaderTest {
 
     @Test
     fun testReadIntSplitOneByteAtATime() = runTest {
-        val reader = JsByteReader(
+        val reader = OpfsByteReader(
             flowOf(
                 chunk(byteArrayOf(0x01)),
                 chunk(byteArrayOf(0x02)),
@@ -85,7 +86,7 @@ class FlowByteReaderTest {
 
     @Test
     fun testReadIntNegativeValue() = runTest {
-        val reader = JsByteReader(
+        val reader = OpfsByteReader(
             flowOf(chunk(byteArrayOf(0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte()))),
             this
         )
@@ -99,7 +100,7 @@ class FlowByteReaderTest {
         val text = "hello"
         val bytes = text.encodeToByteArray()
         val frame = chunk(byteArrayOf(0x00, bytes.size.toByte()) + bytes)
-        val reader = JsByteReader(flowOf(frame), this)
+        val reader = OpfsByteReader(flowOf(frame), this)
         assertEquals(text, reader.readString())
     }
 
@@ -107,7 +108,7 @@ class FlowByteReaderTest {
     fun testReadStringAcrossChunkBoundary() = runTest {
         val text = "world"
         val bytes = text.encodeToByteArray()
-        val reader = JsByteReader(
+        val reader = OpfsByteReader(
             flowOf(
                 chunk(byteArrayOf(0x00, bytes.size.toByte()) + bytes.copyOf(2)),
                 chunk(bytes.copyOfRange(2, bytes.size)),
@@ -122,13 +123,13 @@ class FlowByteReaderTest {
         val text = "caf\u00e9" // "café" — 'é' is 2 bytes in UTF-8
         val bytes = text.encodeToByteArray()
         val frame = chunk(byteArrayOf((bytes.size shr 8).toByte(), bytes.size.toByte()) + bytes)
-        val reader = JsByteReader(flowOf(frame), this)
+        val reader = OpfsByteReader(flowOf(frame), this)
         assertEquals(text, reader.readString())
     }
 
     @Test
     fun testReadEmptyString() = runTest {
-        val reader = JsByteReader(flowOf(chunk(byteArrayOf(0x00, 0x00))), this)
+        val reader = OpfsByteReader(flowOf(chunk(byteArrayOf(0x00, 0x00))), this)
         assertEquals("", reader.readString())
     }
 
@@ -138,14 +139,14 @@ class FlowByteReaderTest {
     fun testReadByteArrayWithinChunk() = runTest {
         val payload = byteArrayOf(0xDE.toByte(), 0xAD.toByte(), 0xBE.toByte(), 0xEF.toByte())
         val frame = chunk(byteArrayOf(0x00, payload.size.toByte()) + payload)
-        val reader = JsByteReader(flowOf(frame), this)
+        val reader = OpfsByteReader(flowOf(frame), this)
         assertContentEquals(payload, reader.readByteArray())
     }
 
     @Test
     fun testReadByteArrayAcrossChunkBoundary() = runTest {
         val payload = byteArrayOf(0x01, 0x02, 0x03, 0x04, 0x05, 0x06)
-        val reader = JsByteReader(
+        val reader = OpfsByteReader(
             flowOf(
                 chunk(byteArrayOf(0x00)),
                 chunk(byteArrayOf(payload.size.toByte()) + payload.copyOf(3)),
@@ -158,7 +159,7 @@ class FlowByteReaderTest {
 
     @Test
     fun testReadEmptyByteArray() = runTest {
-        val reader = JsByteReader(flowOf(chunk(byteArrayOf(0x00, 0x00))), this)
+        val reader = OpfsByteReader(flowOf(chunk(byteArrayOf(0x00, 0x00))), this)
         assertContentEquals(byteArrayOf(), reader.readByteArray())
     }
 
@@ -173,7 +174,7 @@ class FlowByteReaderTest {
                     byteArrayOf(0x00, 0x00, 0x00, 0x2A) +                  // int    = 42
                     byteArrayOf(0x00, textBytes.size.toByte()) + textBytes
         )
-        val reader = JsByteReader(flowOf(payload), this)
+        val reader = OpfsByteReader(flowOf(payload), this)
         assertEquals(0x0102.toShort(), reader.readShort())
         assertEquals(42, reader.readInt())
         assertEquals(text, reader.readString())
@@ -192,7 +193,7 @@ class FlowByteReaderTest {
             byteArrayOf(0x00, textBytes.size.toByte()) + textBytes
 
         val chunks = payload.map { chunk(byteArrayOf(it)) }
-        val reader = JsByteReader(flow { chunks.forEach { emit(it) } }, this)
+        val reader = OpfsByteReader(flow { chunks.forEach { emit(it) } }, this)
         assertEquals(short, reader.readShort())
         assertEquals(int, reader.readInt())
         assertEquals(text, reader.readString())
@@ -202,20 +203,20 @@ class FlowByteReaderTest {
 
     @Test
     fun testReadShortPastEndOfStream() = runTest {
-        val reader = JsByteReader(flowOf(chunk(byteArrayOf(0x01))), this)
+        val reader = OpfsByteReader(flowOf(chunk(byteArrayOf(0x01))), this)
         assertFailsWith<IOException> { reader.readShort() }
     }
 
     @Test
     fun testReadIntPastEndOfStream() = runTest {
-        val reader = JsByteReader(flowOf(chunk(byteArrayOf(0x01, 0x02))), this)
+        val reader = OpfsByteReader(flowOf(chunk(byteArrayOf(0x01, 0x02))), this)
         assertFailsWith<IOException> { reader.readInt() }
     }
 
     @Test
     fun testReadStringPastEndOfStream() = runTest {
         // Length header says 10 bytes but stream only has 3
-        val reader = JsByteReader(flowOf(chunk(byteArrayOf(0x00, 0x0A, 0x01, 0x02, 0x03))), this)
+        val reader = OpfsByteReader(flowOf(chunk(byteArrayOf(0x00, 0x0A, 0x01, 0x02, 0x03))), this)
         assertFailsWith<IOException> { reader.readString() }
     }
 }

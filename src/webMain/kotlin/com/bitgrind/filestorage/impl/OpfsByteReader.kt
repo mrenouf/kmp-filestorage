@@ -2,7 +2,7 @@
 
 package com.bitgrind.filestorage.impl
 
-import com.bitgrind.filestorage.api.ByteReader
+import com.bitgrind.filestorage.ByteReader
 import js.buffer.ArrayBuffer
 import js.iterable.asFlow
 import js.numbers.JsNumbers.toKotlinUByte
@@ -30,7 +30,7 @@ import kotlin.js.ExperimentalWasmJsInterop
  * The [scope] is used to launch the coroutine that collects the flow into an
  * internal channel. Call [close] to cancel that coroutine when done reading early.
  */
-internal class JsByteReader internal /* ForTesting */ constructor(
+internal class OpfsByteReader internal /* ForTesting */ constructor(
     flow: Flow<Chunk>,
     scope: CoroutineScope,
     onClose: (suspend () -> Unit)? = null
@@ -48,7 +48,7 @@ internal class JsByteReader internal /* ForTesting */ constructor(
     companion object {
         fun of(file: File, scope: CoroutineScope) {
             val stream = file.stream()
-            JsByteReader(stream.asFlow(), scope)
+            OpfsByteReader(stream.asFlow(), scope)
         }
     }
 

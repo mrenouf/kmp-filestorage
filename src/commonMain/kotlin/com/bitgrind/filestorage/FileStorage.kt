@@ -1,6 +1,8 @@
-package com.bitgrind.filestorage.api
+package com.bitgrind.filestorage
 
 interface FileStorage {
+    suspend fun readText(path: String): String
+    suspend fun writeText(path: String, content: String, append: Boolean)
     suspend fun getReader(path: String): ByteReader
     suspend fun getWriter(path: String,  append: Boolean): ByteWriter
     suspend fun createDirectories(path: String)
@@ -8,4 +10,4 @@ interface FileStorage {
     suspend fun exists(path: String): Boolean
 }
 
-expect fun getFileStorage(): FileStorage
+expect suspend fun getFileStorage(): FileStorage

@@ -1,6 +1,6 @@
 package com.bitgrind.filestorage.impl
 
-import com.bitgrind.filestorage.api.ByteWriter
+import com.bitgrind.filestorage.ByteWriter
 import kotlinx.io.Sink
 import kotlinx.io.writeString
 

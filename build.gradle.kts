@@ -49,27 +49,22 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(libs.kotlinx.io.core)
+            implementation(libs.kotlinx.coroutines.core)
         }
         webMain.dependencies {
             implementation(libs.kotlin.wrappers.browser)
             implementation(libs.kotlin.wrappers.js)
             implementation(libs.kotlin.wrappers.web)
             implementation(libs.kotlinx.browser)
-            implementation(libs.kotlinx.coroutines.core)
-
         }
         jvmTest.dependencies {
-            implementation(libs.kotlin.test)
             implementation(libs.junit.jupiter.api)
             implementation(libs.junit.jupiter.params)
-            implementation(libs.kotlinx.coroutines.test)
         }
-        webTest.dependencies {
+        commonTest.dependencies {
             implementation(libs.kotlin.test)
-            implementation(libs.kotlin.wrappers.jsTest)
             implementation(libs.kotlinx.coroutines.test)
         }
-
     }
 }
 tasks.withType<Test> {

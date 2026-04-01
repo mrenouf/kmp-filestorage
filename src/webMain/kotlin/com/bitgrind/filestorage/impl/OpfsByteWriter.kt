@@ -2,7 +2,7 @@
 
 package com.bitgrind.filestorage.impl
 
-import com.bitgrind.filestorage.api.ByteWriter
+import com.bitgrind.filestorage.ByteWriter
 import js.buffer.ArrayBuffer
 import js.numbers.JsNumbers.toJsUByte
 import js.typedarrays.Uint8Array
@@ -12,7 +12,7 @@ import web.fs.write
 import web.streams.close
 import kotlin.js.ExperimentalWasmJsInterop
 
-internal class JsByteWriter(private val stream: FileSystemWritableFileStream) : ByteWriter {
+internal class OpfsByteWriter(private val stream: FileSystemWritableFileStream) : ByteWriter {
 
     private typealias Chunk = Uint8Array<ArrayBuffer>
 

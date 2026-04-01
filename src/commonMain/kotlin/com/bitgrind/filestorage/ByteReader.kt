@@ -1,4 +1,4 @@
-package com.bitgrind.filestorage.api
+package com.bitgrind.filestorage
 
 /**
  * Wire format conventions:
