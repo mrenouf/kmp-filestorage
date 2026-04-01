@@ -118,6 +118,13 @@ internal class OpfsByteReader internal /* ForTesting */ constructor(
         position = 0
     }
 
+    override suspend fun readByte(): Byte {
+        ensureAvailable(1)
+        val byte = current[position]
+        position++
+        return byte.toKotlinUByte().toByte()
+    }
+
 
     /** Reads a big-endian signed 16-bit integer. */
     override suspend fun readShort(): Short {

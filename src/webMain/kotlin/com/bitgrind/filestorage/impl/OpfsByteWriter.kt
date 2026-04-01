@@ -38,6 +38,12 @@ internal class OpfsByteWriter(private val stream: FileSystemWritableFileStream) 
         }
     }
 
+    /** Writes a single signed 8-bit byte. */
+    override suspend fun writeByte(byte: Byte) {
+        ensureRemaining(1)
+        buffer[position++] = byte.toUByte().toJsUByte()
+    }
+
     /** Writes a big-endian signed 16-bit integer. */
     override suspend fun writeShort(short: Short) {
         ensureRemaining(2)

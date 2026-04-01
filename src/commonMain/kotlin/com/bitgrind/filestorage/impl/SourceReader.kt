@@ -6,6 +6,10 @@ import kotlinx.io.readByteArray
 import kotlinx.io.readString
 
 internal class SourceReader(private val source: Source) : ByteReader {
+    override suspend fun readByte(): Byte {
+        return source.readByte()
+    }
+
     override suspend fun readShort(): Short {
         return source.readShort()
     }

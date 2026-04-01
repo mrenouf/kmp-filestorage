@@ -12,6 +12,18 @@ import kotlin.test.assertTrue
 class FileStorageTest {
     // --- write/read roundtrip ---
     @Test
+    fun testWriteAndReadByte() = runTest {
+        runFileStorageTest { storage ->
+            val writer = storage.getWriter("byte.bin", append = false)
+            writer.writeByte(0x12.toByte())
+            writer.close()
+
+            val reader = storage.getReader("byte.bin")
+            assertEquals(0x12.toByte(), reader.readByte())
+            reader.close()
+        }
+    }
+    @Test
     fun testWriteAndReadShort() = runTest {
         runFileStorageTest { storage ->
             val writer = storage.getWriter("short.bin", append = false)

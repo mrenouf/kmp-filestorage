@@ -5,6 +5,10 @@ import kotlinx.io.Sink
 import kotlinx.io.writeString
 
 internal class SinkWriter(private val sink: Sink) : ByteWriter {
+    override suspend fun writeByte(byte: Byte) {
+        sink.writeByte(byte)
+    }
+
     override suspend fun writeShort(short: Short) {
         sink.writeShort(short)
     }

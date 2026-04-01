@@ -6,6 +6,7 @@ package com.bitgrind.filestorage
  * - Strings and byte arrays are prefixed by an unsigned 16-bit length
  */
 interface ByteReader {
+    suspend fun readByte(): Byte
     suspend fun readShort(): Short
     suspend fun readInt(): Int
     suspend fun readString(): String
