@@ -1,56 +1,120 @@
-This is a Kotlin Multiplatform project targeting Web, Desktop (JVM).
+# kmp-filestorage
 
-* [/composeApp](./composeApp/src) is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-    - [commonMain](./composeApp/src/commonMain/kotlin) is for code that’s common for all targets.
-    - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-      For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-      the [iosMain](./composeApp/src/iosMain/kotlin) folder would be the right place for such calls.
-      Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./composeApp/src/jvmMain/kotlin)
-      folder is the appropriate location.
+A Kotlin Multiplatform file storage library providing a unified API for file I/O across JVM, Android, and web (JS/WASM) targets. Write once, store everywhere.
 
-* [/shared](./shared/src) is for the code that will be shared between all targets in the project.
-  The most important subfolder is [commonMain](./shared/src/commonMain/kotlin). If preferred, you
-  can add code to the platform-specific folders here too.
+## Features
 
-* [/webApp](./webApp) contains web React application. It uses the Kotlin/JS library produced
-  by the [shared](./shared) module.
+- **Unified API** — the same `FileStorage`, `ByteReader`, and `ByteWriter` interfaces work on every supported platform
+- **Structured I/O** — built-in support for reading and writing `Int`, `Short`, `String`, and `ByteArray` with a consistent big-endian wire format
+- **Cross-platform compatibility** — data written on JVM can be read in a browser and vice versa
+- **Async-first** — all operations are `suspend` functions, integrating naturally with coroutines
+- **Web storage via OPFS** — on JS/WASM targets, uses the browser's [Origin Private File System](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system) for persistent, sandboxed storage
 
-### Build and Run Desktop (JVM) Application
+## Platform Support
 
-To build and run the development version of the desktop app, use the run configuration from the run widget
-in your IDE’s toolbar or run it directly from the terminal:
+| Platform    | Storage Backend               |
+|-------------|-------------------------------|
+| JVM         | `kotlinx.io.SystemFileSystem` |
+| Android     | `kotlinx.io.SystemFileSystem` |
+| JavaScript  | Origin Private File System (OPFS) |
+| WebAssembly | Origin Private File System (OPFS) |
 
-- on macOS/Linux
-  ```shell
-  ./gradlew :composeApp:run
-  ```
-- on Windows
-  ```shell
-  .\gradlew.bat :composeApp:run
-  ```
+## Usage
 
-### Build and Run Web Application
+### Get a `FileStorage` instance
 
-To build and run the development version of the web app, use the run configuration from the run widget
-in your IDE’s toolbar or run it directly from the terminal:
+```kotlin
+val fs = getFileStorage()
+```
 
-1. Install [Node.js](https://nodejs.org/en/download) (which includes `npm`)
-2. Build Kotlin/JS shared code:
-    - on macOS/Linux
-      ```shell
-      ./gradlew :shared:jsBrowserDevelopmentLibraryDistribution
-      ```
-    - on Windows
-      ```shell
-      .\gradlew.bat :shared:jsBrowserDevelopmentLibraryDistribution
-      ```
-3. Build and run the web application
-   ```shell
-   npm install
-   npm run start
-   ```
+The `getFileStorage()` function is an `expect`/`actual` entry point — each platform returns the appropriate implementation automatically.
 
----
+### Write data
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)…
+```kotlin
+val writer = fs.getWriter("mydir/data.bin", append = false)
+writer.writeInt(42)
+writer.writeString("hello, world")
+writer.writeByteArray(byteArrayOf(0x01, 0x02, 0x03))
+writer.close()
+```
+
+### Read data back
+
+```kotlin
+val reader = fs.getReader("mydir/data.bin")
+val number  = reader.readInt()       // 42
+val message = reader.readString()    // "hello, world"
+val bytes   = reader.readByteArray() // [0x01, 0x02, 0x03]
+reader.close()
+```
+
+### File system operations
+
+```kotlin
+// Create directories (recursive)
+fs.createDirectories("a/b/c")
+
+// Check existence
+if (fs.exists("a/b/c/file.bin")) { ... }
+
+// Delete a file or directory
+fs.delete("a/b/c/file.bin", recursive = false)
+fs.delete("a/b", recursive = true)
+```
+
+## Wire Format
+
+All values are encoded with a stable, cross-platform binary format:
+
+| Type        | Encoding                                |
+|-------------|-----------------------------------------|
+| `Short`     | 2 bytes, big-endian                     |
+| `Int`       | 4 bytes, big-endian                     |
+| `String`    | UInt16 byte-length prefix + UTF-8 bytes |
+| `ByteArray` | UInt16 element-count prefix + raw bytes |
+
+This ensures that files written on one platform are always readable on another.
+
+## Path Normalization
+
+Paths are automatically normalized before use:
+
+```
+"a/b/../c"  →  a/c
+"/a/b/."    →  a/b
+"/../a"     →  a      (back-references above root are silently ignored)
+```
+
+## Adding to Your Project
+
+This library is not yet published to Maven Central. To use it locally, include it as a composite build:
+
+**`settings.gradle.kts`** (in your consuming project):
+```kotlin
+includeBuild("../kmp-filestorage")
+```
+
+**`build.gradle.kts`**:
+```kotlin
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation("com.bitgrind:kmp-filestorage:0.1")
+        }
+    }
+}
+```
+
+## Dependencies
+
+| Library              | Version   | Purpose                         |
+|----------------------|-----------|---------------------------------|
+| Kotlin Multiplatform | 2.3.20    | Language & multiplatform tooling |
+| kotlinx-io           | 0.9.0     | Cross-platform I/O primitives   |
+| kotlinx-coroutines   | 1.10.2    | Suspend/async support           |
+| kotlin-wrappers      | 2026.3.16 | Browser API bindings (web only) |
+
+## License
+
+This project is provided as-is. License TBD.
