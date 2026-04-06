@@ -18,6 +18,10 @@ internal class SourceReader(private val source: Source) : ByteReader {
         return source.readInt()
     }
 
+    override suspend fun readLong(): Long {
+        return source.readLong()
+    }
+
     override suspend fun readString(): String {
         val length = source.readShort().toInt() and 0xFFFF
         return source.readString(length.toLong())

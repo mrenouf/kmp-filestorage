@@ -46,6 +46,7 @@ internal class OpfsByteReader internal /* ForTesting */ constructor(
     )
 
     companion object {
+        val DEFAULT_BUFFER_SIZE = 4096
         fun of(file: File, scope: CoroutineScope) {
             val stream = file.stream()
             OpfsByteReader(stream.asFlow(), scope)
@@ -54,7 +55,6 @@ internal class OpfsByteReader internal /* ForTesting */ constructor(
 
     // TODO: Can this be made any more efficient?
     fun toInt(x: JsUByte): Int = x.toKotlinUByte().toInt()
-
     private val channel: Channel<Chunk> = Channel<Chunk>(Channel.BUFFERED)
 
     init {
@@ -73,8 +73,10 @@ internal class OpfsByteReader internal /* ForTesting */ constructor(
     }
 
     private var current: Chunk = Uint8Array(0)
+    private var buffer = ArrayBuffer(DEFAULT_BUFFER_SIZE)
     private var position: Int = 0
-
+    //private val avail: Int get() = buffer.
+    private val maxReadSize: Int = buffer.maxByteLength
     private val available: Int get() = current.length - position
 
     /**

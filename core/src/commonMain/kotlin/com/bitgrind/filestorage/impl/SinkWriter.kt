@@ -17,6 +17,10 @@ internal class SinkWriter(private val sink: Sink) : ByteWriter {
         sink.writeInt(int)
     }
 
+    override suspend fun writeLong(long: Long) {
+        sink.writeLong(long)
+    }
+
     override suspend fun writeString(string: String) {
         sink.writeShort((string.length and 0xFFFF).toShort())
         sink.writeString(string)
