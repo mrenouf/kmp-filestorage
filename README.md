@@ -4,20 +4,23 @@ A Kotlin Multiplatform file storage library providing a unified API for file I/O
 
 ## Features
 
-- **Unified API** — the same `FileStorage`, `ByteReader`, and `ByteWriter` interfaces work on every supported platform
-- **Structured I/O** — built-in support for reading and writing `Int`, `Short`, `String`, and `ByteArray` with a consistent big-endian wire format
-- **Cross-platform compatibility** — data written on JVM can be read in a browser and vice versa
+- **Unified API** — one interface across mobile, desktop and web
+- **Structured I/O** — familiar interface modeled after `Source` and `Sync`, supporting standard Kotlin types `Byte`, `Short`, `Int`, `Long`, `String` and `ByteArray`
 - **Async-first** — all operations are `suspend` functions, integrating naturally with coroutines
 - **Web storage via OPFS** — on JS/WASM targets, uses the browser's [Origin Private File System](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system) for persistent, sandboxed storage
 
 ## Platform Support
 
-| Platform    | Storage Backend               |
-|-------------|-------------------------------|
-| JVM         | `kotlinx.io.SystemFileSystem` |
-| Android     | `kotlinx.io.SystemFileSystem` |
-| JavaScript  | Origin Private File System (OPFS) |
-| WebAssembly | Origin Private File System (OPFS) |
+| Platform     | Storage Backend               |
+|--------------|-------------------------------|
+| JVM          | `kotlinx.io.SystemFileSystem` |
+| Android      | `kotlinx.io.SystemFileSystem` |
+| Native       | `kotlinx.io.SystemFileSystem` |
+| Js/Browser   | Origin Private File System (OPFS) |
+| Wasm/Browser | Origin Private File System (OPFS) |
+
+> Note: The Kotlin/Js implementation of `kotlinx.io.FileSystem` [supports only server side 
+> applications](https://kotlinlang.org/api/kotlinx-io/kotlinx-io-core/kotlinx.io.files/-system-file-system.html).
 
 ## Usage
 
@@ -27,14 +30,28 @@ A Kotlin Multiplatform file storage library providing a unified API for file I/O
 val fs = getFileStorage()
 ```
 
-The `getFileStorage()` function is an `expect`/`actual` entry point — each platform returns the appropriate implementation automatically.
-
-### Write data
+### Bulk read and write text files
 
 ```kotlin
-val writer = fs.getWriter("mydir/data.bin", append = false)
+fs.writeText("notes.txt", "hello, world")
+fs.readText("notes.txt")
+```
+
+### Bulk read and write binary files
+
+```kotlin
+fs.writeBytes("data.bin", byteArrayOf(1, 2, 3))
+fs.readBytes("data.bin")
+```
+
+### Write structured data
+
+```kotlin
+val writer = fs.getWriter("cache/data.bin", append = false)
 writer.writeInt(42)
+writer.writeInt(12)
 writer.writeString("hello, world")
+writer.writeInt(3)
 writer.writeByteArray(byteArrayOf(0x01, 0x02, 0x03))
 writer.close()
 ```
@@ -42,10 +59,12 @@ writer.close()
 ### Read data back
 
 ```kotlin
-val reader = fs.getReader("mydir/data.bin")
-val number  = reader.readInt()       // 42
-val message = reader.readString()    // "hello, world"
-val bytes   = reader.readByteArray() // [0x01, 0x02, 0x03]
+val reader = fs.getReader("cache/data.bin")
+val number  = reader.readInt()               // 42
+val textLength = reader.readInt()
+val message = reader.readString(textLength)  // "hello, world"
+val dataLength = reader.readInt()
+val bytes = reader.readByteArray(dataLength) // [0x01, 0x02, 0x03]
 reader.close()
 ```
 
@@ -56,35 +75,19 @@ reader.close()
 fs.createDirectories("a/b/c")
 
 // Check existence
-if (fs.exists("a/b/c/file.bin")) { ... }
+if (fs.exists("a/b/c/file.bin")) {   }
 
 // Delete a file or directory
 fs.delete("a/b/c/file.bin", recursive = false)
 fs.delete("a/b", recursive = true)
 ```
 
-## Wire Format
+## Path Handling and Normalization
 
-All values are encoded with a stable, cross-platform binary format:
+Web targets have no concept of 'current working directory'. On Js and WasmJs targets, relative paths are always interpreted against the root (`/`). The path `.` is removed when normalizing paths. On other platforms, path references work as expected.
+This allows relative paths relative to the `CWD` on JVM and Native targets (`./data/cache`) to be interpreted as (`/data/cache`) within the browser file system.
 
-| Type        | Encoding                                |
-|-------------|-----------------------------------------|
-| `Short`     | 2 bytes, big-endian                     |
-| `Int`       | 4 bytes, big-endian                     |
-| `String`    | UInt16 byte-length prefix + UTF-8 bytes |
-| `ByteArray` | UInt16 element-count prefix + raw bytes |
-
-This ensures that files written on one platform are always readable on another.
-
-## Path Normalization
-
-Paths are automatically normalized before use:
-
-```
-"a/b/../c"  →  a/c
-"/a/b/."    →  a/b
-"/../a"     →  a      (back-references above root are silently ignored)
-```
+Paths are normalized, removing `.` and resolving `..` against parent directories.
 
 ## Adding to Your Project
 
@@ -100,7 +103,7 @@ includeBuild("../kmp-filestorage")
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("com.bitgrind:kmp-filestorage:0.1")
+            implementation("com.bitgrind:filestorage-core:0.1")
         }
     }
 }
