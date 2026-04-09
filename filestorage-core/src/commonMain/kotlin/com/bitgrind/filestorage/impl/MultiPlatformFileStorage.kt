@@ -3,6 +3,7 @@ package com.bitgrind.filestorage.impl
 import com.bitgrind.filestorage.ByteReader
 import com.bitgrind.filestorage.ByteWriter
 import com.bitgrind.filestorage.FileStorage
+import com.bitgrind.filestorage.internal.FileStorageTestApi
 import com.bitgrind.filestorage.tempName
 import kotlinx.io.IOException
 import kotlinx.io.buffered
@@ -23,12 +24,12 @@ import kotlin.random.Random
  * For Js and WasmJS browser, use `OpfsStorage`.
  */
 @Suppress("unused")
-class MultiPlatformFileStorage : FileStorage {
+class MultiPlatformFileStorage : FileStorage, FileStorageTestApi {
 
     override val systemTempDir: String = SystemTemporaryDirectory.toString().ifEmpty { "/tmp" }
     override val systemPathSeparator: String = SystemPathSeparator.toString()
 
-    internal var random: Random = Random
+    override var random: Random = Random
 
     init {
         println("[MultiPlatformFileStorage]")
@@ -102,16 +103,20 @@ class MultiPlatformFileStorage : FileStorage {
         suffix: String?
     ): String {
         val tempFile = Path(tempName(path, prefix, suffix, random))
+        if (SystemFileSystem.exists(tempFile)) {
+            throw IOException( "File $tempFile already exists")
+        }
         tempFile.parent?.also { parent ->
             if (!SystemFileSystem.exists(parent)) {
                 SystemFileSystem.createDirectories(parent, mustCreate = false)
             }
         }
-        if (SystemFileSystem.exists(tempFile)) {
-            throw IOException( "File $tempFile already exists")
-        }
         SystemFileSystem.sink(Path(tempFile)).close()
         return tempFile.toString()
+    }
+
+    override suspend fun move(source: String, destination: String) {
+        SystemFileSystem.atomicMove(Path(source), Path(destination))
     }
 
     private fun delete(path: Path, recursive: Boolean) {

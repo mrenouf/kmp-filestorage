@@ -20,6 +20,7 @@ interface FileStorage {
     suspend fun exists(path: String): Boolean
     suspend fun createTempDir(path: String? = null, prefix: String? = null): String
     suspend fun createTempFile(path: String? = null, prefix: String? = null, suffix: String? = null): String
+    suspend fun move(source: String, destination: String)
 }
 
 internal fun FileStorage.tempName(path: String? = null, prefix: String? = null, suffix: String? = null, random: Random = Random): String {
