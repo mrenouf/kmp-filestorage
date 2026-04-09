@@ -14,13 +14,13 @@ import kotlin.io.path.deleteRecursively
  * Create a MultiPlatformFileStorage scoped to a root path within
  * a temp dir, runs [block], then recursively removes the temp dir.
  */
-actual suspend fun runFileStorageTest(block: suspend (FileStorage, path: (String) -> String) -> Unit) {
+actual suspend fun runFileStorageTest(block: suspend (FileStorage, path: String) -> Unit) {
 
     val testRoot = createTempDirectory("filestorage-test")
 
     val storage: FileStorage = MultiPlatformFileStorage()
     try {
-        block(storage) { path -> Path(testRoot.absolutePathString(), path).toString() }
+        block(storage, testRoot.absolutePathString())
     } finally {
         testRoot.deleteRecursively()
     }

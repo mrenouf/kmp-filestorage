@@ -68,8 +68,8 @@ class ByteReaderTest {
         val chunks = arrayOf(byteArrayOf(0x61, 0xC3.toByte()), byteArrayOf(0xA9.toByte(), 0x62))
         runFileStorageTest { storage, path ->
             val bytes = byteReaderOf(*chunks).readByteArray(chunks.sumOf { it.size })
-            storage.writeBytes(path("text.bin"), bytes, append = false)
-            assertEquals("aéb", storage.readText(path("text.bin")))
+            storage.writeBytes("$path/text.bin", bytes, append = false)
+            assertEquals("aéb", storage.readText("$path/text.bin"))
         }
     }
 
@@ -79,8 +79,8 @@ class ByteReaderTest {
         val chunks = arrayOf(byteArrayOf(0x61, 0xE2.toByte()), byteArrayOf(0x82.toByte(), 0xAC.toByte(), 0x62))
         runFileStorageTest { storage, path ->
             val bytes = byteReaderOf(*chunks).readByteArray(chunks.sumOf { it.size })
-            storage.writeBytes(path("text.bin"), bytes, append = false)
-            assertEquals("a€b", storage.readText(path("text.bin")))
+            storage.writeBytes("$path/text.bin", bytes, append = false)
+            assertEquals("a€b", storage.readText("$path/text.bin"))
         }
     }
 
@@ -90,8 +90,8 @@ class ByteReaderTest {
         val chunks = arrayOf(byteArrayOf(0x61, 0xF0.toByte()), byteArrayOf(0x9F.toByte(), 0x98.toByte()), byteArrayOf(0x80.toByte(), 0x62))
         runFileStorageTest { storage, path ->
             val bytes = byteReaderOf(*chunks).readByteArray(chunks.sumOf { it.size })
-            storage.writeBytes(path("text.bin"), bytes, append = false)
-            assertEquals("a😀b", storage.readText(path("text.bin")))
+            storage.writeBytes("$path/text.bin", bytes, append = false)
+            assertEquals("a😀b", storage.readText("$path/text.bin"))
         }
     }
 // --- FileStorage.readBytes ---
@@ -101,8 +101,8 @@ class ByteReaderTest {
         val chunks = arrayOf(byteArrayOf(0xDE.toByte(), 0xAD.toByte(), 0xBE.toByte(), 0xEF.toByte()))
         runFileStorageTest { storage, path ->
             val bytes = byteReaderOf(*chunks).readByteArray(chunks.sumOf { it.size })
-            storage.writeBytes(path("bytes.bin"), bytes, append = false)
-            assertContentEquals(bytes, storage.readBytes(path("bytes.bin")))
+            storage.writeBytes("$path/bytes.bin", bytes, append = false)
+            assertContentEquals(bytes, storage.readBytes("$path/bytes.bin"))
         }
     }
 
@@ -111,8 +111,8 @@ class ByteReaderTest {
         val chunks = arrayOf(byteArrayOf(0x01, 0x02), byteArrayOf(0x03, 0x04))
         runFileStorageTest { storage, path ->
             val bytes = byteReaderOf(*chunks).readByteArray(chunks.sumOf { it.size })
-            storage.writeBytes(path("bytes.bin"), bytes, append = false)
-            assertContentEquals(byteArrayOf(0x01, 0x02, 0x03, 0x04), storage.readBytes(path("bytes.bin")))
+            storage.writeBytes("$path/bytes.bin", bytes, append = false)
+            assertContentEquals(byteArrayOf(0x01, 0x02, 0x03, 0x04), storage.readBytes("$path/bytes.bin"))
         }
     }
 }

@@ -10,7 +10,7 @@ import kotlin.random.Random
  * Create a MultiPlatformFileStorage scoped to a root path within
  * a temp dir, runs [block], then recursively removes the temp dir.
  */
-actual suspend fun runFileStorageTest(block: suspend (FileStorage, path: (String) -> String) -> Unit) {
+actual suspend fun runFileStorageTest(block: suspend (FileStorage, path: String) -> Unit) {
     val fs = SystemFileSystem
 
     fun Path.deleteRecursively() {
@@ -36,7 +36,7 @@ actual suspend fun runFileStorageTest(block: suspend (FileStorage, path: (String
 
     val tempDir = createTempDirectory("filestorage-test-")
     try {
-        block(storage) { path -> Path(tempDir, path).toString() }
+        block(storage, tempDir.toString())
     } finally {
         tempDir.deleteRecursively()
     }

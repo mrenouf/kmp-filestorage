@@ -18,7 +18,7 @@ import kotlin.js.ExperimentalWasmJsInterop
  * recursively removes all entries created during the test.
  * Skips silently if OPFS is not available in the current environment.
  */
-actual suspend fun runFileStorageTest(block: suspend (FileStorage, path: (String) -> String) -> Unit) {
+actual suspend fun runFileStorageTest(block: suspend (FileStorage, path: String) -> Unit) {
     val storageManager = try {
         navigator.storage
     } catch (_: Exception) {
@@ -31,7 +31,7 @@ actual suspend fun runFileStorageTest(block: suspend (FileStorage, path: (String
     val testRoot = storage.tempName(path = "/", prefix = "filestorage-test-").substringAfter('/')
     root.getDirectoryHandle(testRoot, fileSystemGetDirectoryOptions(create = true))
     try {
-        block(storage) { path -> "/$testRoot/$path" }
+        block(storage, testRoot)
     } finally {
         root.removeEntry(testRoot, fileSystemRemoveOptions(recursive = true))
     }
