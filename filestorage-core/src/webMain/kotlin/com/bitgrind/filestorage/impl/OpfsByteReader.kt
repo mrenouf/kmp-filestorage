@@ -48,7 +48,11 @@ internal class OpfsByteReader internal /* ForTesting */ constructor(
             val read = result.value!!
             val bytesRead = read.byteLength
             if (bytesRead > remaining) {
-                buffer.resize(writePosition + bytesRead)
+                var newSize = buffer.byteLength
+                while ((newSize - writePosition) < bytesRead) {
+                    newSize *= 2
+                }
+                buffer.resize(newSize)
             }
             uint8Array.set(read, writePosition)
             writePosition += bytesRead

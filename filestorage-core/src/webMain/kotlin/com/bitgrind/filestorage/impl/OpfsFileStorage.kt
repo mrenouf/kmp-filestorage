@@ -27,7 +27,7 @@ class OpfsFileStorage(
 ) : FileStorage, FileStorageTestApi {
     companion object {
         const val BUFFER_SIZE = 4096
-        const val MAX_BUFFER_SIZE = 1_048_576
+        const val MAX_BUFFER_SIZE = Int.MAX_VALUE
         const val CR = '\r'.code.toByte()
         const val LF = '\n'.code.toByte()
     }
