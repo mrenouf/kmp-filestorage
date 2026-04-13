@@ -9,4 +9,8 @@ interface ByteWriter {
     suspend fun writeByteArray(array: ByteArray)
     suspend fun writeByteArray(array: ByteArray, offset: Int, length: Int)
     suspend fun close()
+
+    suspend fun writeLine(string: String) {
+        writeString(string + "\n")
+    }
 }

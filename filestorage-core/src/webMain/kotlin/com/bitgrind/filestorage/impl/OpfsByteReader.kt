@@ -1,8 +1,11 @@
 @file:OptIn(ExperimentalWasmJsInterop::class)
+
 package com.bitgrind.filestorage.impl
 
 import com.bitgrind.filestorage.ByteReader
 import com.bitgrind.filestorage.impl.OpfsFileStorage.Companion.BUFFER_SIZE
+import com.bitgrind.filestorage.impl.OpfsFileStorage.Companion.CR
+import com.bitgrind.filestorage.impl.OpfsFileStorage.Companion.LF
 import com.bitgrind.filestorage.impl.OpfsFileStorage.Companion.MAX_BUFFER_SIZE
 import js.buffer.ArrayBuffer
 import js.buffer.DataView
@@ -10,7 +13,6 @@ import js.typedarrays.Uint8Array
 import js.typedarrays.toByteArray
 import kotlinx.io.EOFException
 import web.encoding.TextDecoder
-import web.file.File
 import web.streams.ReadableStreamDefaultReader
 import web.streams.read
 import kotlin.js.ExperimentalWasmJsInterop
@@ -30,14 +32,18 @@ internal class OpfsByteReader internal /* ForTesting */ constructor(
     private var readPosition: Int = 0
     private var writePosition: Int = 0
 
-    private suspend fun ensureAvailable(needed: Int) {
-        if (available >= needed) return
+    private suspend fun requireBytes(needed: Int) {
+        if (!requestBytes(needed)) {
+            throw EOFException("Stream ended unexpectedly: need $needed bytes but only $available available")
+        }
+    }
+
+    private suspend fun requestBytes(needed: Int): Boolean {
+        if (available >= needed) return true
         while (available < needed) {
             val result = stream.read()
             if (result.done) {
-                throw EOFException(
-                    "Stream ended unexpectedly: need $needed bytes but only $available available"
-                )
+                return false
             }
             val read = result.value!!
             val bytesRead = read.byteLength
@@ -47,27 +53,36 @@ internal class OpfsByteReader internal /* ForTesting */ constructor(
             uint8Array.set(read, writePosition)
             writePosition += bytesRead
         }
+        return true
+    }
+
+    override suspend fun exhausted(): Boolean {
+        return !requestBytes(1)
+    }
+
+    internal fun peekByte(): Byte {
+        return view.getInt8(readPosition)
     }
 
     override suspend fun readByte(): Byte {
-        ensureAvailable(1)
+        requireBytes(1)
         return view.getInt8(readPosition++)
     }
 
     /** Reads a big-endian signed 16-bit integer. */
     override suspend fun readShort(): Short {
-        ensureAvailable(2)
+        requireBytes(2)
         return view.getInt16(readPosition).also { readPosition += 2 }
     }
 
     /** Reads a big-endian signed 32-bit integer. */
     override suspend fun readInt(): Int {
-        ensureAvailable(4)
+        requireBytes(4)
         return view.getInt32(readPosition).also { readPosition += 4 }
     }
 
     override suspend fun readLong(): Long {
-        ensureAvailable(8)
+        requireBytes(8)
         val i1 = view.getInt32(readPosition)
         val i2 = view.getInt32(readPosition + 4)
         readPosition += 8
@@ -144,6 +159,35 @@ internal class OpfsByteReader internal /* ForTesting */ constructor(
             }
         }
         return outArray.toByteArray()
+    }
+
+    private fun DataView<ArrayBuffer>.endOfLineOrNull(start: Int, end: Int): Int? {
+        for (i in start until end) {
+            val next = getInt8(i)
+            if (next == CR || next == LF) {
+                return i
+            }
+        }
+        return null
+    }
+
+    override suspend fun readLine(): String? = buildString {
+        if (!requestBytes(1)) return null
+        while (true) {
+            val eolPos = view.endOfLineOrNull(readPosition, writePosition)
+            val eolChar = eolPos?.let { view.getInt8(it) }
+            val decodeEnd = eolPos ?: writePosition
+            val startNext = eolPos?.plus(1) ?: writePosition
+            val decodeLength = decodeEnd - readPosition
+            append(textDecoder.decode(Uint8Array(buffer, readPosition, decodeLength), textDecodeOptions(stream = true)))
+            readPosition = startNext
+            if (eolChar == CR && (available > 0 || requestBytes(1)) && peekByte() == LF) {
+                readPosition++
+            }
+            if (eolChar != null || !requestBytes(1)) {
+                return toString()
+            }
+        }
     }
 
     override suspend fun close() {
