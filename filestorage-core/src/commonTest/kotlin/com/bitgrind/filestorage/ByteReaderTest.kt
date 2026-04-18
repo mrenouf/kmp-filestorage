@@ -6,6 +6,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class ByteReaderTest {
 
@@ -58,7 +59,72 @@ class ByteReaderTest {
             byteArrayOf(0x80.toByte(), 0x62),                 // last byte of 😀, 'b'
         )
         assertEquals("a😀b", reader.readString(6))
-    } // --- readLine ---
+    } // --- readVarint ---
+
+    @Test
+    fun testReadVarintZero() = runTest {
+        val reader = byteReaderOf(byteArrayOf(0x00))
+        assertEquals(0L, reader.readVarint())
+    }
+
+    @Test
+    fun testReadVarintOne() = runTest {
+        val reader = byteReaderOf(byteArrayOf(0x01))
+        assertEquals(1L, reader.readVarint())
+    }
+
+    @Test
+    fun testReadVarintMaxOneByte() = runTest {
+        val reader = byteReaderOf(byteArrayOf(0x7F))
+        assertEquals(127L, reader.readVarint())
+    }
+
+    @Test
+    fun testReadVarintMinTwoBytes() = runTest {
+        val reader = byteReaderOf(byteArrayOf(0x80.toByte(), 0x01))
+        assertEquals(128L, reader.readVarint())
+    }
+
+    @Test
+    fun testReadVarintThreeHundred() = runTest {
+        val reader = byteReaderOf(byteArrayOf(0xAC.toByte(), 0x02))
+        assertEquals(300L, reader.readVarint())
+    }
+
+    @Test
+    fun testReadVarintMaxTwoBytes() = runTest {
+        val reader = byteReaderOf(byteArrayOf(0xFF.toByte(), 0x7F))
+        assertEquals(16383L, reader.readVarint())
+    }
+
+    @Test
+    fun testReadVarintLargeValue() = runTest {
+        // 2147483647 = Int.MAX_VALUE = 0x7FFFFFFF
+        // varint encoding: 0xFF 0xFF 0xFF 0xFF 0x07
+        val reader = byteReaderOf(byteArrayOf(0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0x07))
+        assertEquals(Int.MAX_VALUE.toLong(), reader.readVarint())
+    }
+
+    @Test
+    fun testReadVarintMaxLong() = runTest {
+        // Long.MAX_VALUE = 0x7FFFFFFFFFFFFFFF
+        // varint encoding: 9 bytes
+        val reader = byteReaderOf(byteArrayOf(
+            0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(),
+            0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0x7F
+        ))
+        assertEquals(Long.MAX_VALUE, reader.readVarint())
+    }
+
+    @Test
+    fun testReadVarintOverflowThrows() = runTest {
+        // 10 bytes all with continuation bit set — overflows 64 bits
+        val bytes = ByteArray(10) { 0x80.toByte() }
+        val reader = byteReaderOf(bytes)
+        assertFailsWith<IllegalArgumentException> { reader.readVarint() }
+    }
+
+    // --- readLine ---
 
     @Test
     fun testReadLineEmptyReader() = runTest {
